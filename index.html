@@ -142,6 +142,14 @@ footer > *{position:relative;z-index:1;}
 
 .wa-float{position:fixed;bottom:22px;left:22px;background:#25D366;color:#fff;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(0,0,0,.25);z-index:200;font-size:26px;}
 
+/* embroidery scroll thread */
+.thread-zone{position:relative;}
+.thread-svg{position:absolute;top:0;right:18px;width:30px;height:100%;pointer-events:none;z-index:5;}
+.thread-line{fill:none;stroke:var(--wine);stroke-width:2.5;stroke-linecap:round;transition:stroke-dashoffset .1s linear;}
+.thread-stitch{stroke:var(--wine);stroke-width:2.5;stroke-linecap:round;opacity:0;transition:opacity .4s ease;}
+.thread-stitch.on{opacity:1;}
+@media(max-width:900px){.thread-svg{display:none;}}
+
 /* cart drawer */
 .overlay-bg{position:fixed;inset:0;background:rgba(20,4,6,.55);z-index:998;opacity:0;pointer-events:none;transition:opacity .3s;}
 .overlay-bg.show{opacity:1;pointer-events:auto;}
@@ -207,6 +215,11 @@ footer > *{position:relative;z-index:1;}
   </div>
   <div class="hero-scroll">▾ مرري لأسفل</div>
 </section>
+
+<div class="thread-zone" id="threadZone">
+<svg class="thread-svg" id="threadSvg" preserveAspectRatio="none">
+  <path class="thread-line" id="threadPath" d=""></path>
+</svg>
 
 <section class="section" id="categories">
   <div class="section-head reveal">
@@ -324,6 +337,7 @@ footer > *{position:relative;z-index:1;}
     </div>
   </footer>
 </div>
+</div><!-- /thread-zone -->
 
 <a class="wa-float" href="https://wa.me/972599317048" target="_blank">🟢</a>
 
@@ -508,6 +522,49 @@ const obs = new IntersectionObserver((entries)=>{
   entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('show'); } });
 },{threshold:.12});
 document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+
+/* ---------- embroidery scroll thread ---------- */
+let threadPathLength = 0;
+function buildThreadPath(){
+  const zone = document.getElementById('threadZone');
+  const svg = document.getElementById('threadSvg');
+  const path = document.getElementById('threadPath');
+  const h = zone.offsetHeight;
+  svg.setAttribute('viewBox', `0 0 30 ${h}`);
+
+  // zigzag "running stitch" pattern down the full height
+  const step = 26;      // vertical distance per stitch
+  const amp = 7;         // horizontal sway
+  let d = `M 15 0`;
+  let y = 0, dir = 1;
+  while(y < h){
+    y += step;
+    const x = 15 + (dir * amp);
+    d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
+    dir *= -1;
+  }
+  path.setAttribute('d', d);
+  threadPathLength = path.getTotalLength();
+  path.style.strokeDasharray = threadPathLength;
+  path.style.strokeDashoffset = threadPathLength;
+}
+
+function updateThreadProgress(){
+  const zone = document.getElementById('threadZone');
+  const path = document.getElementById('threadPath');
+  if(!zone || !path || !threadPathLength) return;
+  const rect = zone.getBoundingClientRect();
+  const vh = window.innerHeight;
+  const total = rect.height;
+  // progress: 0 when zone top reaches ~70% of viewport, 1 when zone bottom reaches ~30% of viewport
+  const started = vh*0.75 - rect.top;
+  const progress = Math.min(1, Math.max(0, started / (total - vh*0.4)));
+  path.style.strokeDashoffset = threadPathLength * (1 - progress);
+}
+
+window.addEventListener('load', ()=>{ buildThreadPath(); updateThreadProgress(); });
+window.addEventListener('resize', ()=>{ buildThreadPath(); updateThreadProgress(); });
+window.addEventListener('scroll', updateThreadProgress, {passive:true});
 </script>
 
 </body>
