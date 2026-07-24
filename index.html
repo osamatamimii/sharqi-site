@@ -219,6 +219,7 @@ footer > *{position:relative;z-index:1;}
 <div class="thread-zone" id="threadZone">
 <svg class="thread-svg" id="threadSvg" preserveAspectRatio="none" overflow="visible">
   <path class="thread-line" id="threadPath" d=""></path>
+  <g id="stitchGroup"></g>
   <g id="needle" style="opacity:0">
     <line x1="0" y1="-16" x2="0" y2="6" stroke="var(--wine)" stroke-width="2.2" stroke-linecap="round"/>
     <ellipse cx="0" cy="-16" rx="2.2" ry="3.2" fill="none" stroke="var(--wine)" stroke-width="1.6"/>
@@ -529,6 +530,7 @@ document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
 
 /* ---------- embroidery scroll thread ---------- */
 let threadPathLength = 0;
+let stitchData = [];
 let seedRand = mulberry32(1234);
 function mulberry32(a){
   return function(){
@@ -564,6 +566,27 @@ function buildThreadPath(){
   threadPathLength = path.getTotalLength();
   path.style.strokeDasharray = threadPathLength;
   path.style.strokeDashoffset = threadPathLength;
+
+  // build cross-stitch marks along the path
+  const stitchGroup = document.getElementById('stitchGroup');
+  stitchGroup.innerHTML = '';
+  stitchData = [];
+  const spacing = 20;
+  for(let len = 10; len < threadPathLength - 10; len += spacing){
+    const p = path.getPointAtLength(len);
+    const p2 = path.getPointAtLength(Math.min(threadPathLength, len + 1));
+    const angle = Math.atan2(p2.y - p.y, p2.x - p.x);
+    const perp = angle + Math.PI/2;
+    const r = 4.5;
+    const x1 = p.x + Math.cos(perp)*r, y1 = p.y + Math.sin(perp)*r;
+    const x2 = p.x - Math.cos(perp)*r, y2 = p.y - Math.sin(perp)*r;
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', x1.toFixed(1)); line.setAttribute('y1', y1.toFixed(1));
+    line.setAttribute('x2', x2.toFixed(1)); line.setAttribute('y2', y2.toFixed(1));
+    line.setAttribute('class','thread-stitch');
+    stitchGroup.appendChild(line);
+    stitchData.push({len, el:line});
+  }
 }
 
 function updateThreadProgress(){
@@ -578,6 +601,7 @@ function updateThreadProgress(){
   const progress = Math.min(1, Math.max(0, started / (total - vh*0.4)));
   const drawn = threadPathLength * progress;
   path.style.strokeDashoffset = threadPathLength - drawn;
+  stitchData.forEach(s=>{ s.el.classList.toggle('on', s.len <= drawn); });
 
   if(progress > 0.002 && progress < 1){
     const tip = path.getPointAtLength(drawn);
